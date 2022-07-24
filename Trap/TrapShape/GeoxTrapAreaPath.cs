@@ -10,9 +10,9 @@ using System.Xml.Schema;
 
 namespace TrapTool
 {
-    public class TrapShapeVector : ITrapShape
+    public class GeoxTrapAreaPath : ITrapShape
     {
-        public ShapeType Type => ShapeType.Vector;
+        public ShapeType Type => ShapeType.Path;
         public float YMin { get; set; }
         public float YMax { get; set; }
         public List<Vector4> Points { get; set; }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -13,51 +14,16 @@ namespace TrapTool
     public enum ShapeType : byte
     {
         Box = 19,
-        Vector = 27
+        Path = 27
     }
-    [Flags]public enum Tag : ulong
-    {
-	    Intrude = 0x1,
-	    Tower = 0x2,
-	    InRoom = 0x4,
-	    FallDeath = 0x8,
 
-	    NearCamera1 = 0x10,
-	    NearCamera2 = 0x20,
-	    NearCamera3 = 0x40,
-	    NearCamera4 = 0x80,
-
-	    x9978c8d36f7 = 0x100,
-	    NoRainEffect = 0x200,
-	    x60e79a58dcc3 = 0x400,
-	    GimmickNoFulton = 0x800,
-
-	    innerZone = 0x1000,
-	    outerZone = 0x2000,
-	    hotZone = 0x4000,
-	    x439898dcbf83 = 0x8000,
-
-	    xe780e431a068 = 0x10000,
-	    x53827eed3fbc = 0x20000,
-	    x7e1121c5cb93 = 0x40000,
-	    xcadd57b76a83 = 0x80000,
-
-	    xe689072c4df8 = 0x100000,
-	    x6d14396ebbe5 = 0x200000,
-	    xd1ee7dc34fff = 0x400000,
-	    xb07e254afcae = 0x800000,
-
-	    xd6ee65d20b7a = 0x10000000,
-	    xf287ba9cb7e3 = 0x20000000,
-	    NoFulton = 0x40000000,
-	    x24330b0e33cb = 0xffffffff80000000,
-    };
     public class TrapEntry : IXmlSerializable
     {
         public ShapeType Type { get; set; }
-        public ulong Tags { get; set; }
+        public Tag Tags { get; set; }
         public FoxHash Name { get; set; }
         public List<ITrapShape> Shapes = new List<ITrapShape>();
+
         public void Read(BinaryReader reader, HashManager hashManager)
         {
             uint shapeDefBitfield = reader.ReadUInt32();
@@ -76,7 +42,7 @@ namespace TrapTool
             reader.ReadZeroes(12);
             Console.WriteLine($"@{reader.BaseStream.Position} Type: {Type}, shape#: {shapeCount}");
 
-            Tags = reader.ReadUInt64(); //TODO pretty?
+            Tags = (Tag)reader.ReadUInt64();
             Name = new FoxHash(FoxHash.Type.StrCode32);
             Name.Read(reader, hashManager.StrCode32LookupTable, hashManager.OnHashIdentified);
             reader.ReadZeroes(4);
@@ -84,21 +50,21 @@ namespace TrapTool
 
             for (int i = 0; i < shapeCount; i++)
             {
+                ITrapShape shape;
                 switch (Type)
                 {
                     case ShapeType.Box:
-                        ITrapShape boxShape = new TrapShapeBox();
-                        boxShape.Read(reader);
-                        Shapes.Add(boxShape);
+                        shape = new BoxShape();
                         break;
-                    case ShapeType.Vector:
-                        ITrapShape vectorShape = new TrapShapeVector();
-                        vectorShape.Read(reader);
-                        Shapes.Add(vectorShape);
+                    case ShapeType.Path:
+                        shape = new GeoxTrapAreaPath();
                         break;
                     default:
                         throw new NotImplementedException($"@{reader.BaseStream.Position} Unknown ShapeType!!!");
                 }
+
+                shape.Read(reader);
+                Shapes.Add(shape);
             }
             if (Type==ShapeType.Box)
             {
@@ -116,7 +82,7 @@ namespace TrapTool
             writer.Write(shapeDefBitfield);
             writer.WriteZeroes(12);
 
-            writer.Write(Tags);
+            writer.Write((ulong)Tags);
             Name.Write(writer);
             writer.WriteZeroes(4);
 
@@ -134,38 +100,26 @@ namespace TrapTool
             Name = new FoxHash(FoxHash.Type.StrCode32);
             Name.ReadXml(reader, "name");
 
-            /*
-            Tags = ulong.Parse(reader["tags"]);
-            */
-
-            Type = (ShapeType)byte.Parse(reader["type"]);
+            Type = (ShapeType)ShapeType.Parse(typeof(ShapeType), reader["type"]);
             reader.ReadStartElement("entry");
 
+            Tags = 0;
             reader.ReadStartElement("tags");
-            List<int> flagArray = new List<int>();
             var loop = true;
             while (loop)
             {
                 switch (reader.NodeType)
                 {
                     case XmlNodeType.Element:
-                        var tag = int.Parse(reader["tagId"]);
+                        var tag = reader["name"];
                         reader.ReadStartElement("tag");
-                        flagArray.Add(tag);
+
+                        Tags |= Tags.GetFromDescription(tag);
                         continue;
                     case XmlNodeType.EndElement:
                         loop = false;
                         break;
                 }
-            }
-            Tags = 0;
-            foreach (int bitIndex in flagArray)
-            {
-                Console.WriteLine($"Tags add index {bitIndex}");
-                Console.WriteLine($"Tags pre: {Tags}");
-                var bitFlag = (ulong)1 << bitIndex;
-                Tags |= bitFlag;
-                Console.WriteLine($"Tags post: {Tags}");
             }
             reader.ReadEndElement();
 
@@ -186,41 +140,33 @@ namespace TrapTool
         }
         ITrapShape CreateShape()
         {
-            switch (Type)
+            return Type switch
             {
-                case ShapeType.Box:
-                    return new TrapShapeBox();
-                case ShapeType.Vector:
-                    return new TrapShapeVector();
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-            throw new ArgumentOutOfRangeException();
+                ShapeType.Box => new BoxShape(),
+                ShapeType.Path => new GeoxTrapAreaPath(),
+                _ => throw new ArgumentOutOfRangeException(),
+            };
         }
 
         public void WriteXml(XmlWriter writer)
         {
             Name.WriteXml(writer, "name");
             Console.WriteLine($"Name: {Name.HashValue}");
-            writer.WriteAttributeString("type", ((byte)Type).ToString());
+            writer.WriteAttributeString("type", Type.ToString());
             Console.WriteLine($"Type: {Type}");
 
-            /*
-            writer.WriteAttributeString("tags", Tags.ToString());
-            Console.WriteLine($"Tags: {Tags}");
-            */
-            List<int> flagArray = new List<int>();
-            for (int bitIndex = 0; bitIndex < 64; bitIndex++)
-                if ((Tags & ((ulong)1 << bitIndex)) != 0)
-                    flagArray.Add(bitIndex);
-
             writer.WriteStartElement("tags");
-            foreach (int tag in flagArray)
+            for (int bitIndex = 0; bitIndex < 64; bitIndex++)
             {
-                writer.WriteStartElement("tag");
-                writer.WriteAttributeString("tagId", tag.ToString());
-                writer.WriteEndElement();
+                ulong mask = (ulong)1 << bitIndex;
+                Tag tag = (Tag)((ulong)Tags & mask);
 
+                if (tag == 0)
+                    continue;
+
+                writer.WriteStartElement("tag");
+                writer.WriteAttributeString("name", tag.GetDescription());
+                writer.WriteEndElement();
             }
             writer.WriteEndElement();
 
@@ -234,7 +180,7 @@ namespace TrapTool
 
         public XmlSchema GetSchema()
         {
-            return null;
+            throw new NotImplementedException();
         }
     }
 }

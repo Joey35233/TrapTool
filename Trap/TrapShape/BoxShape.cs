@@ -9,7 +9,7 @@ using System.Xml.Schema;
 
 namespace TrapTool
 {
-    public class TrapShapeBox : ITrapShape
+    public class BoxShape : ITrapShape
     {
         public ShapeType Type => ShapeType.Box;
         public Vector4 Scale { get; set; }

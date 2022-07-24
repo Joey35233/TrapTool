@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TrapTool": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\Users\\joey3\\Desktop\\afc0_common_gimmicks_fox2_geotrap_win.trap.xml\""
+    }
+  }
+}
