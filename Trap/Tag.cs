@@ -64,6 +64,10 @@ namespace TrapTool
 
         [Description("Unnamed0")]
         Unnamed0 = 0x2000000,
+        //[Description("Unnamed2")]
+        //Unnamed0 = 0x2000000,
+        //[Description("Unnamed3")]
+        //Unnamed0 = 0x2000000,
 
         [Description("0xd6ee65d20b7a")]
         _d6ee65d20b7a = 0x10000000,
@@ -71,6 +75,8 @@ namespace TrapTool
         _f287ba9cb7e3 = 0x20000000,
         [Description("NoFulton")]
         NoFulton = 0x40000000,
+        [Description("Unnamed1")]
+        Unnamed1 = 0x80000000,
         [Description("0x24330b0e33cb")]
         _24330b0e33cb = 0xffffffff80000000,
     };

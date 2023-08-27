@@ -155,6 +155,8 @@ namespace TrapTool
 
         public void WriteXml(XmlWriter writer)
         {
+            uint debugWriterUnknownTagCount = 0;
+
             writer.WriteStartDocument();
             writer.WriteStartElement("trap");
             DataSet.WriteXml(writer, "dataSet");
@@ -162,9 +164,16 @@ namespace TrapTool
             foreach (TrapEntry entry in Entries)
             {
                 writer.WriteStartElement("entry");
+                entry.DebugWriterUnknownTagCount = debugWriterUnknownTagCount;
                 entry.WriteXml(writer);
+                debugWriterUnknownTagCount = entry.DebugWriterUnknownTagCount;
                 writer.WriteEndElement();
             }
+
+            writer.WriteStartElement("metrics");
+            writer.WriteAttributeString("debugWriterUnknownTagCount", debugWriterUnknownTagCount.ToString());
+            writer.WriteEndElement();
+
             writer.WriteEndDocument();
         }
         public XmlSchema GetSchema()

@@ -24,6 +24,8 @@ namespace TrapTool
         public FoxHash Name { get; set; }
         public List<ITrapShape> Shapes = new List<ITrapShape>();
 
+        public uint DebugWriterUnknownTagCount = 0;
+
         public void Read(BinaryReader reader, HashManager hashManager)
         {
             uint shapeDefBitfield = reader.ReadUInt32();
@@ -163,6 +165,9 @@ namespace TrapTool
 
                 if (tag == 0)
                     continue;
+
+                if (tag.GetDescription().StartsWith("Unnamed", StringComparison.CurrentCultureIgnoreCase) || tag.GetDescription().StartsWith("0x", StringComparison.CurrentCultureIgnoreCase))
+                    DebugWriterUnknownTagCount++;
 
                 writer.WriteStartElement("tag");
                 writer.WriteAttributeString("name", tag.GetDescription());
